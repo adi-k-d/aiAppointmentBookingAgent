@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+.venv/
+
+# Local environment files (keep the template shareable)
+.env.*
+!.env.example
+.env
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
