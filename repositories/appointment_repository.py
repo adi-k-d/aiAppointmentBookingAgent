@@ -41,9 +41,9 @@ def create_appointment(
                 """,
                 (name, phone),
             )
-            patient_id = cursor.fetchone()[0]
+            patient_id = cursor.fetchone()["id"]
         else:
-            patient_id = patient[0]
+            patient_id = patient["id"]
 
         cursor.execute(
             """
@@ -51,14 +51,14 @@ def create_appointment(
                 (starts_at, ends_at, doctor_id, patient_id)
             VALUES
                 (%s, %s, %s, %s)
-            RETURNING id, doctor_id, starts_at, ends_at
+            RETURNING id, doctor_id, patient_id, starts_at, ends_at
             """,
             (starts_at, ends_at, doctor_id, patient_id),
         )
 
         appointment = cursor.fetchone()
 
-        appointment_id = appointment[0]
+        appointment_id = appointment["id"]
 
         cursor.execute(
             """
