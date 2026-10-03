@@ -101,19 +101,20 @@ def get_appointments(doctor_id=None, patient_id=None):
     cursor = connection.cursor()
 
     query = """
-        SELECT id, name, starts_at, ends_at, doctor_id, patient_id
-        FROM appointments
+        SELECT a.id, p.name, a.starts_at, a.ends_at, a.doctor_id, a.patient_id
+        FROM appointments a
+        JOIN patients p ON p.id = a.patient_id
     """
 
     conditions = []
     params = []
 
     if doctor_id:
-        conditions.append("doctor_id = %s")
+        conditions.append("a.doctor_id = %s")
         params.append(doctor_id)
 
     if patient_id:
-        conditions.append("patient_id = %s")
+        conditions.append("a.patient_id = %s")
         params.append(patient_id)
 
     if conditions:
