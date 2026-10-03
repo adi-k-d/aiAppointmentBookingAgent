@@ -1,4 +1,5 @@
 import psycopg
+from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 from database import get_connection
@@ -98,7 +99,7 @@ def create_appointment(
 
 def get_appointments(doctor_id=None, patient_id=None):
     connection = get_connection()
-    cursor = connection.cursor()
+    cursor = connection.cursor(row_factory=dict_row)
 
     query = """
         SELECT a.id, p.name, a.starts_at, a.ends_at, a.doctor_id, a.patient_id
