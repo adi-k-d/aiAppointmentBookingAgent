@@ -13,7 +13,7 @@ def create_appointment(
     doctor_id,
 ):
     connection = get_connection()
-    cursor = connection.cursor()
+    cursor = connection.cursor(row_factory=dict_row)
 
     try:
         cursor.execute(
@@ -99,33 +99,29 @@ def create_appointment(
 
 def get_appointments(doctor_id=None, patient_id=None):
     connection = get_connection()
-    cursor = connection.cursor(row_factory=dict_row)
+    try:
+        with connection.cursor(row_factory=dict_row) as cursor:
+            query = """
+                SELECT a.id, p.name, a.starts_at, a.ends_at, a.doctor_id, a.patient_id
+                FROM appointments a
+                JOIN patients p ON p.id = a.patient_id
+            """
 
-    query = """
-        SELECT a.id, p.name, a.starts_at, a.ends_at, a.doctor_id, a.patient_id
-        FROM appointments a
-        JOIN patients p ON p.id = a.patient_id
-    """
+            conditions = []
+            params = []
 
-    conditions = []
-    params = []
+            if doctor_id is not None:
+                conditions.append("a.doctor_id = %s")
+                params.append(doctor_id)
 
-    if doctor_id:
-        conditions.append("a.doctor_id = %s")
-        params.append(doctor_id)
+            if patient_id is not None:
+                conditions.append("a.patient_id = %s")
+                params.append(patient_id)
 
-    if patient_id:
-        conditions.append("a.patient_id = %s")
-        params.append(patient_id)
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
 
-    if conditions:
-        query += " WHERE " + " AND ".join(conditions)
-
-    cursor.execute(query, params)
-
-    appointments = cursor.fetchall()
-
-    cursor.close()
-    connection.close()
-
-    return appointments
+            cursor.execute(query, params)
+            return cursor.fetchall()
+    finally:
+        connection.close()

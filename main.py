@@ -1,14 +1,16 @@
 import os
+import logging
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException
 
 from database import get_connection
 from schemas import AppointmentCreate, AppointmentResponse, PatientCreate
-from services.booking_service import create_appointment, get_appointment
+from services.booking_service import book_appointment, get_appointment
 from services.patient_service import register_patient
 
 app = FastAPI()
+logger = logging.getLogger(__name__)
 
 
 @app.get("/")
@@ -40,7 +42,7 @@ def create_patient(patient: PatientCreate):
 @app.post("/book-appointment", response_model=AppointmentResponse)
 def book_appointments(appointment: AppointmentCreate):
     try:
-        return create_appointment(
+        return book_appointment(
             appointment.name,
             appointment.phone,
             appointment.starts_at,
@@ -56,4 +58,11 @@ def book_appointments(appointment: AppointmentCreate):
 
 @app.get("/appointments")
 def all_appointments(doctor_id: UUID | None = None, patient_id: UUID | None = None):
-    return get_appointment(doctor_id, patient_id)
+    try:
+        return get_appointment(doctor_id, patient_id)
+    except Exception as e:
+        logger.exception("Failed to fetch appointments")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to fetch appointments. Check the server logs for details.",
+        ) from e
