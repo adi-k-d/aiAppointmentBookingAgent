@@ -1,17 +1,11 @@
-from database import get_connection
+from database import get_session
+from models import Patient
 
 
 def create_patient(name, phone):
-    connection = get_connection()
-    cursor = connection.cursor()
-    cursor.execute(
-        """insert into patients (name,phone) values (%s,%s) returning id,name,phone""",
-        (name, phone),
-    )
-    patient = cursor.fetchone()
-    connection.commit()
+    with get_session() as session:
+        patient = Patient(name=name, phone=phone)
+        session.add(patient)
+        session.flush()
 
-    cursor.close()
-    connection.close()
-
-    return patient
+        return {"id": patient.id, "name": patient.name, "phone": patient.phone}

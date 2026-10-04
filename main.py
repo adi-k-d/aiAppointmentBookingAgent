@@ -1,10 +1,12 @@
-import os
 import logging
+import os
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException
+from sqlalchemy import select
 
-from database import get_connection
+from database import get_session
+from models import Doctor
 from schemas import AppointmentCreate, AppointmentResponse, PatientCreate
 from services.booking_service import book_appointment, get_appointment
 from services.patient_service import register_patient
@@ -25,12 +27,9 @@ def health_check():
 @app.get("/doctors")
 def get_doctors():
 
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    doctors = cursor.execute("""select id ,name from doctors""").fetchall()
-    cursor.close()
-    return doctors
+    with get_session() as session:
+        rows = session.execute(select(Doctor.id, Doctor.name)).mappings()
+        return [dict(row) for row in rows]
 
 
 @app.post("/add-patient")

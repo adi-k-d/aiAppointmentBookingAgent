@@ -1,8 +1,8 @@
-import psycopg
-from psycopg.rows import dict_row
-from psycopg.types.json import Jsonb
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
-from database import get_connection
+from database import get_session
+from models import Appointment, Doctor, OutboxEvent, Patient
 
 
 def create_appointment(
@@ -12,116 +12,67 @@ def create_appointment(
     ends_at,
     doctor_id,
 ):
-    connection = get_connection()
-    cursor = connection.cursor(row_factory=dict_row)
+    with get_session as session:
+        try:
+            if session.get(Doctor, doctor_id) is None:
+                raise ValueError("Doctor does not exist")
 
-    try:
-        cursor.execute(
-            "SELECT id FROM doctors WHERE id = %s",
-            (doctor_id,),
-        )
+            patient = session.scalars(select(Patient).where(Patient.phone == phone))
 
-        doctor = cursor.fetchone()
+            if patient is None:
+                patient = Patient(name == name, phone == phone)
+                session.add(patient)
+                session.flush()
 
-        if doctor is None:
-            raise ValueError("Doctor does not exist")
-        cursor.execute(
-            """SELECT id FROM patients WHERE phone = %s""",
-            (phone,),
-        )
-
-        patient = cursor.fetchone()
-
-        if patient is None:
-            cursor.execute(
-                """
-                INSERT INTO patients(name, phone)
-                VALUES (%s, %s)
-                RETURNING id
-                """,
-                (name, phone),
+            appointment = Appointment(
+                starts_at=starts_at,
+                ends_at=ends_at,
+                doctor_id=doctor_id,
+                patient_id=patient.id,
             )
-            patient_id = cursor.fetchone()["id"]
-        else:
-            patient_id = patient["id"]
+            session.add(appointment)
+            session.flush()
 
-        cursor.execute(
-            """
-            INSERT INTO appointments
-                (starts_at, ends_at, doctor_id, patient_id)
-            VALUES
-                (%s, %s, %s, %s)
-            RETURNING id, doctor_id, patient_id, starts_at, ends_at
-            """,
-            (starts_at, ends_at, doctor_id, patient_id),
-        )
-
-        appointment = cursor.fetchone()
-
-        appointment_id = appointment["id"]
-
-        cursor.execute(
-            """
-            INSERT INTO outbox_events
-                (event_type, aggregate_id, payload)
-            VALUES
-                (%s, %s, %s)
-            """,
-            (
-                "appointment_created",
-                appointment_id,
-                Jsonb(
-                    {
-                        "appointment_id": str(appointment_id),
-                        "patient_id": str(patient_id),
+            session.add(
+                OutboxEvent(
+                    event_type="Appointment Created",
+                    aggregate_id=appointment.id,
+                    payload={
+                        "appointment_id": str(appointment.id),
+                        "patient_id": str(patient.id),
                         "doctor_id": str(doctor_id),
-                    }
-                ),
-            ),
-        )
+                    },
+                )
+            )
 
-        connection.commit()
+            return {
+                "id": appointment.id,
+                "name": patient.name,
+                "doctor_id": appointment.doctor_id,
+                "patient_id": appointment.patient_id,
+                "starts_at": appointment.starts_at,
+                "ends_at": appointment.ends_at,
+            }
 
-        return appointment
-
-    except psycopg.errors.ForeignKeyViolation:
-        connection.rollback()
-        raise ValueError("Doctor does not exist")
-
-    except Exception:
-        connection.rollback()
-        raise
-
-    finally:
-        cursor.close()
-        connection.close()
+        except IntegrityError:
+            # Doctor deleted between the existence check and the insert.
+            raise ValueError("Doctor does not exist")
 
 
 def get_appointments(doctor_id=None, patient_id=None):
-    connection = get_connection()
-    try:
-        with connection.cursor(row_factory=dict_row) as cursor:
-            query = """
-                SELECT a.id, p.name, a.starts_at, a.ends_at, a.doctor_id, a.patient_id
-                FROM appointments a
-                JOIN patients p ON p.id = a.patient_id
-            """
+    query = select(
+        Appointment.id,
+        Patient.name,
+        Appointment.starts_at,
+        Appointment.ends_at,
+        Appointment.doctor_id,
+        Appointment.patient_id,
+    ).join(Patient, Patient.id == Appointment.patient_id)
+    if doctor_id is not None:
+        query = query.where(Appointment.doctor_id == doctor_id)
 
-            conditions = []
-            params = []
+    if patient_id is not None:
+        query = query.where(Appointment.patient_id == patient_id)
 
-            if doctor_id is not None:
-                conditions.append("a.doctor_id = %s")
-                params.append(doctor_id)
-
-            if patient_id is not None:
-                conditions.append("a.patient_id = %s")
-                params.append(patient_id)
-
-            if conditions:
-                query += " WHERE " + " AND ".join(conditions)
-
-            cursor.execute(query, params)
-            return cursor.fetchall()
-    finally:
-        connection.close()
+    with get_session as session:
+        return [dict(row) for row in session.execute(query).mappings()]

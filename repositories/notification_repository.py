@@ -1,31 +1,16 @@
-from database import get_connection
+from sqlalchemy.dialects.postgresql import insert
+
+from database import get_session
+from models import Notification
 
 
 def create_notification(appointment_id, type):
-    connection = get_connection()
-    cursor = connection.cursor()
+    statement = (
+        insert(Notification)
+        .values(appointment_id=appointment_id, type=type)
+        .on_conflict_do_nothing(index_elements=["appointment_id", "type"])
+        .returning(Notification.id)
+    )
 
-    try:
-        cursor.execute(
-            """
-            INSERT INTO notifications(appointment_id, type)
-            VALUES (%s, %s)
-            ON CONFLICT (appointment_id, type)
-            DO NOTHING
-            RETURNING id
-            """,
-            (appointment_id, type),
-        )
-
-        result = cursor.fetchone()
-        connection.commit()
-
-        return result
-
-    except Exception:
-        connection.rollback()
-        raise
-
-    finally:
-        cursor.close()
-        connection.close()
+    with get_session() as session:
+        return session.execute(statement).first()

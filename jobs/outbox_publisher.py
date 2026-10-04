@@ -1,38 +1,21 @@
-from database import get_connection
+from sqlalchemy import func, select
+
+from database import get_session
 from jobs.queue import queue
+from models import OutboxEvent
 
 
 def publish_events():
-    connection = get_connection()
-    cursor = connection.cursor()
+    with get_session() as session:
+        events = session.scalars(
+            select(OutboxEvent)
+            .where(OutboxEvent.published_at.is_(None))
+            .order_by(OutboxEvent.created_at)
+        ).all()
 
-    cursor.execute(
-        """
-        SELECT id, event_type, aggregate_id, payload
-        FROM outbox_events
-        WHERE published_at IS NULL
-        ORDER BY created_at
-        """
-    )
-
-    events = cursor.fetchall()
-
-    for event_id, event_type, aggregate_id, payload in events:
-        queue.enqueue(
-            "jobs.notifications.send_confirmation",
-            str(aggregate_id),
-        )
-
-        cursor.execute(
-            """
-            UPDATE outbox_events
-            SET published_at = now()
-            WHERE id = %s
-            """,
-            (event_id,),
-        )
-
-    connection.commit()
-
-    cursor.close()
-    connection.close()
+        for event in events:
+            queue.enqueue(
+                "jobs.notifications.send_confirmation",
+                str(event.aggregate_id),
+            )
+            event.published_at = func.now()
