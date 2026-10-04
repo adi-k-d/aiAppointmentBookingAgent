@@ -36,7 +36,7 @@ SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
 @contextmanager
 def get_session():
-    session: Session = SessionLocal
+    session: Session = SessionLocal()
     try:
         yield session
         session.commit()

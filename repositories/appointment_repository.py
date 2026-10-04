@@ -12,15 +12,17 @@ def create_appointment(
     ends_at,
     doctor_id,
 ):
-    with get_session as session:
+    with get_session() as session:
         try:
             if session.get(Doctor, doctor_id) is None:
                 raise ValueError("Doctor does not exist")
 
-            patient = session.scalars(select(Patient).where(Patient.phone == phone))
+            patient = session.scalars(
+                select(Patient).where(Patient.phone == phone)
+            ).first()
 
             if patient is None:
-                patient = Patient(name == name, phone == phone)
+                patient = Patient(name=name, phone=phone)
                 session.add(patient)
                 session.flush()
 
@@ -74,5 +76,5 @@ def get_appointments(doctor_id=None, patient_id=None):
     if patient_id is not None:
         query = query.where(Appointment.patient_id == patient_id)
 
-    with get_session as session:
+    with get_session() as session:
         return [dict(row) for row in session.execute(query).mappings()]
