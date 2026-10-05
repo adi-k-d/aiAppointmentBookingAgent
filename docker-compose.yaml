@@ -1,6 +1,7 @@
 services:
  app:
   build: .
+  image: jobapp:v3
   container_name: app
   environment:
    POSTGRES_URL: postgresql://postgres:password@postgres:5432/db
@@ -31,21 +32,23 @@ services:
    - redis_data:/data
   
  publisher:
-  build: .
+  image: jobapp:v3
   command: python publisher.py
   environment:
    POSTGRES_URL: postgresql://postgres:password@postgres:5432/db
    REDIS_URL: redis://redis:6379
+   PYTHONUNBUFFERED: "1"
   depends_on:
    - postgres
    - redis
 
  worker:
-  build: .
+  image: jobapp:v3
   command: python worker.py
   environment:
    POSTGRES_URL: postgresql://postgres:password@postgres:5432/db
    REDIS_URL: redis://redis:6379
+   PYTHONUNBUFFERED: "1"
   depends_on:
    - postgres
    - redis

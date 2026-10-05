@@ -6,6 +6,7 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+*.log
 
 # Virtual environments
 venv/
@@ -16,10 +17,26 @@ venv/
 !.env.example
 .env
 
+# Local configuration overrides
+*.local
+*.local.*
+
 # Editor and OS files
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Terraform: keep .terraform.lock.hcl under version control
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Kubernetes Secret manifests may contain credentials
+k8s/**/secret*.yaml
+k8s/**/secret*.yml
 
 booking.sql

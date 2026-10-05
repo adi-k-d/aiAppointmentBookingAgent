@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: 
+ name: formalert-config
+ namespace: formalert
+data:
+ REDIS_URL: redis://redis:6379
+ PYTHONUNBUFFERED: "1"
+
