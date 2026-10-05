@@ -12,7 +12,7 @@ htmlcov/
 venv/
 .venv/
 
-# Local environment files (keep the template shareable)
+# Local environment files
 .env.*
 !.env.example
 .env
@@ -27,16 +27,17 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Terraform: keep .terraform.lock.hcl under version control
-**/.terraform/*
+# Terraform
+**/.terraform/
 *.tfstate
 *.tfstate.*
 *.tfplan
 crash.log
 crash.*.log
 
-# Kubernetes Secret manifests may contain credentials
+# Kubernetes Secret manifests
 k8s/**/secret*.yaml
 k8s/**/secret*.yml
 
+# Local database dump
 booking.sql
